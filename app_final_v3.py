@@ -350,19 +350,43 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
         ]
         return r.choice(colors)
     
-    # 生成词云（使用mask的实际尺寸）
-    wc = WordCloud(
-        font_path='C:/Windows/Fonts/msyh.ttc',
-        width=mask_width,
-        height=mask_height,
-        background_color='white',
-        max_words=100,
-        colormap='viridis',
-        mask=mask,
-        contour_width=0,
-        contour_color='steelblue',
-        color_func=government_colors
-    )
+   # 根据操作系统选择中文字体
+import platform
+system = platform.system()
+
+if system == 'Windows':
+    font_path = 'C:/Windows/Fonts/msyh.ttc'
+elif system == 'Darwin':
+    font_path = '/System/Library/Fonts/PingFang.ttc'
+else:
+    font_candidates = [
+        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/share/fonts/TTF/DejaVuSans.ttf',
+        None
+    ]
+    font_path = None
+    for candidate in font_candidates:
+        if candidate and os.path.exists(candidate):
+            font_path = candidate
+            break
+
+wc_kwargs = {
+    'width': mask_width,
+    'height': mask_height,
+    'background_color': 'white',
+    'max_words': 100,
+    'colormap': 'viridis',
+    'mask': mask,
+    'contour_width': 0,
+    'contour_color': 'steelblue',
+    'color_func': government_colors
+}
+
+if font_path:
+    wc_kwargs['font_path'] = font_path
+
+wc = WordCloud(**wc_kwargs)
     
     wc.generate_from_frequencies(word_freq)
     
