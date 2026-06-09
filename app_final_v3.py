@@ -12,13 +12,63 @@ from datetime import datetime
 from collections import Counter
 import jieba
 from snownlp import SnowNLP
+import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.font_manager import FontProperties
 from wordcloud import WordCloud
 import io
 import platform
-import matplotlib
-matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
-matplotlib.rcParams['axes.unicode_minus'] = False
+
+# ==================== 跨平台中文字体配置 ====================
+def setup_chinese_font():
+    """设置跨平台中文字体"""
+    system = platform.system()
+    font_found = False
+    
+    if system == 'Windows':
+        # Windows字体路径（使用原始字符串避免转义问题）
+        font_candidates = [
+            r'C:\Windows\Fonts\msyh.ttc',  # 微软雅黑
+            r'C:\Windows\Fonts\simhei.ttf',  # 黑体
+            r'C:\Windows\Fonts\simsun.ttc',  # 宋体
+            'C:/Windows/Fonts/msyh.ttc',  # 备用路径
+            'C:/Windows/Fonts/simhei.ttf',
+            'C:/Windows/Fonts/simsun.ttc',
+        ]
+    elif system == 'Darwin':  # macOS
+        font_candidates = [
+            '/System/Library/Fonts/PingFang.ttc',  # 苹方
+            '/Library/Fonts/Arial Unicode.ttf',
+        ]
+    else:  # Linux (包括Codespaces)
+        font_candidates = [
+            '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',  # 文泉驿正黑
+            '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',  # 文泉驿微米黑
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',  # Noto Sans CJK
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        ]
+    
+    for font_path in font_candidates:
+        if os.path.exists(font_path):
+            # 设置字体
+            matplotlib.rcParams['font.sans-serif'] = [font_path]
+            matplotlib.rcParams['axes.unicode_minus'] = False
+            print(f"✅ Matplotlib使用字体: {font_path}")
+            font_found = True
+            break
+    
+    if not font_found:
+        print("⚠️ 未找到中文字体，图表可能显示方框")
+        if system == 'Linux':
+            print("💡 解决方案: 在Codespace终端执行以下命令安装字体:")
+            print("   sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei")
+        # 使用默认字体
+        matplotlib.rcParams['font.sans-serif'] = ['sans-serif']
+        matplotlib.rcParams['axes.unicode_minus'] = False
+
+# 初始化字体配置
+setup_chinese_font()
 
 # ==================== 页面配置 ====================
 st.set_page_config(
@@ -356,21 +406,40 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
     system = platform.system()
     
     if system == 'Windows':
-        font_path = 'C:/Windows/Fonts/msyh.ttc'  # Windows: 微软雅黑
-        if not os.path.exists(font_path):
-            print(f"⚠️ Windows字体 {font_path} 不存在，尝试其他路径")
-            font_path = None
+        font_candidates = [
+            'C:/Windows/Fonts/msyh.ttc',  # Windows: 微软雅黑
+            'C:/Windows/Fonts/simhei.ttf',  # 黑体
+            'C:/Windows/Fonts/simsun.ttc',  # 宋体
+        ]
+        font_path = None
+        for candidate in font_candidates:
+            if os.path.exists(candidate):
+                font_path = candidate
+                print(f"✅ 找到Windows字体: {font_path}")
+                break
+        if not font_path:
+            print("⚠️ Windows未找到中文字体，使用默认字体")
     elif system == 'Darwin':  # macOS
-        font_path = '/System/Library/Fonts/PingFang.ttc'  # macOS: 苹方
-        if not os.path.exists(font_path):
-            print(f"️ macOS字体 {font_path} 不存在，尝试其他路径")
-            font_path = None
+        font_candidates = [
+            '/System/Library/Fonts/PingFang.ttc',  # macOS: 苹方
+            '/Library/Fonts/Arial Unicode.ttf',
+        ]
+        font_path = None
+        for candidate in font_candidates:
+            if os.path.exists(candidate):
+                font_path = candidate
+                print(f"✅ 找到macOS字体: {font_path}")
+                break
+        if not font_path:
+            print("⚠️ macOS未找到中文字体，使用默认字体")
     else:  # Linux (包括Codespaces)
         # Linux系统尝试使用常见中文字体
         font_candidates = [
             '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',  # 文泉驿正黑
-            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # DejaVu Sans
-            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            '/usr/share/fonts/truetype/wqy/wqy-microhei.ttc',  # 文泉驿微米黑
+            '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc',  # Noto Sans CJK
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',  # DejaVu Sans
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
             None  # 最后尝试默认字体
         ]
         font_path = None
@@ -379,6 +448,8 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
                 font_path = candidate
                 print(f"✅ 找到Linux字体: {font_path}")
                 break
+        if not font_path:
+            print("⚠️ Linux未找到中文字体，将尝试安装或下载字体")
     
     # 生成词云（使用mask的实际尺寸）
     wc_kwargs = {
@@ -396,9 +467,11 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
     # 只在找到有效字体时添加font_path参数
     if font_path:
         wc_kwargs['font_path'] = font_path
-        print(f"✅ 使用字体: {font_path}")
+        print(f"✅ 词云使用字体: {font_path}")
     else:
-        print("⚠️ 未找到中文字体，使用默认字体（可能显示方框）")
+        print("️ 未找到中文字体，词云可能显示方框")
+        print("💡 解决方案: 在Codespace终端执行以下命令安装字体:")
+        print("   sudo apt-get update && sudo apt-get install -y fonts-wqy-zenhei")
     
     wc = WordCloud(**wc_kwargs)
     
@@ -491,6 +564,10 @@ def create_line_chart(df, x_col, y_col, title, xlabel, ylabel):
     """创建折线图（政府网站风格）"""
     fig, ax = plt.subplots(figsize=(10, 5))
     
+    # 获取当前使用的中文字体
+    current_font = matplotlib.rcParams['font.sans-serif'][0]
+    font_prop = FontProperties(fname=current_font if os.path.exists(current_font) else None)
+    
     # 政府网站配色
     ax.plot(df[x_col], df[y_col], 
             marker='o', 
@@ -507,10 +584,11 @@ def create_line_chart(df, x_col, y_col, title, xlabel, ylabel):
                  fontsize=16, 
                  fontweight='bold', 
                  pad=15,
-                 color='#8B4513')  # 金棕色标题
+                 color='#8B4513',  # 金棕色标题
+                 fontproperties=font_prop)
     
-    ax.set_xlabel(xlabel, fontsize=13, color='#666666')
-    ax.set_ylabel(ylabel, fontsize=13, color='#666666')
+    ax.set_xlabel(xlabel, fontsize=13, color='#666666', fontproperties=font_prop)
+    ax.set_ylabel(ylabel, fontsize=13, color='#666666', fontproperties=font_prop)
     ax.tick_params(axis='both', which='major', labelsize=12, colors='#333333')
     
     # 政府网站风格网格
@@ -536,6 +614,10 @@ def create_pie_chart(data, title):
     """创建饼图（政府网站风格）"""
     fig, ax = plt.subplots(figsize=(8, 6))
     
+    # 获取当前使用的中文字体
+    current_font = matplotlib.rcParams['font.sans-serif'][0]
+    font_prop = FontProperties(fname=current_font if os.path.exists(current_font) else None)
+    
     # 政府网站配色
     colors = ['#228B22', '#DAA520', '#C41E3A']  # 深绿、金色、中国红
     wedges, texts, autotexts = ax.pie(
@@ -544,7 +626,7 @@ def create_pie_chart(data, title):
         autopct='%1.1f%%', 
         colors=colors, 
         startangle=90,
-        textprops={'fontsize': 12, 'color': '#333333'},
+        textprops={'fontsize': 14, 'color': '#333333', 'fontproperties': font_prop},
         wedgeprops={'edgecolor': 'white', 'linewidth': 2}
     )
     
@@ -554,7 +636,8 @@ def create_pie_chart(data, title):
                  fontsize=16, 
                  fontweight='bold', 
                  pad=20,
-                 color='#8B4513')  # 金棕色标题
+                 color='#8B4513',  # 金棕色标题
+                 fontproperties=font_prop)
     
     plt.tight_layout()
     return fig
