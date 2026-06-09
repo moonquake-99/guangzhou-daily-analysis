@@ -1,5 +1,5 @@
 """
-广州日报舆情分析系统 - 政府网站风格优化版
+广州日报舆情分析系统 - 政府网站风格优化版 (Linux兼容版)
 """
 
 import streamlit as st
@@ -14,6 +14,7 @@ from snownlp import SnowNLP
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
 import io
+import platform
 import matplotlib
 matplotlib.rcParams['font.sans-serif'] = ['Microsoft YaHei', 'SimHei']
 matplotlib.rcParams['axes.unicode_minus'] = False
@@ -21,7 +22,7 @@ matplotlib.rcParams['axes.unicode_minus'] = False
 # ==================== 页面配置 ====================
 st.set_page_config(
     page_title="广州日报舆情分析系统",
-    page_icon="📰",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -297,7 +298,7 @@ def get_sentiment_info(score):
     else:
         return "neutral", "中性", "#B8860B"
 
-# ==================== 词云生成（政府网站配色）====================
+# ==================== 词云生成（跨平台字体支持）====================
 def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
     """从标题列表生成词云（广东地图形状，政府网站配色）"""
     if not titles or len(titles) == 0:
@@ -350,43 +351,45 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
         ]
         return r.choice(colors)
     
-   # 根据操作系统选择中文字体
-import platform
-system = platform.system()
-
-if system == 'Windows':
-    font_path = 'C:/Windows/Fonts/msyh.ttc'
-elif system == 'Darwin':
-    font_path = '/System/Library/Fonts/PingFang.ttc'
-else:
-    font_candidates = [
-        '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',
-        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
-        '/usr/share/fonts/TTF/DejaVuSans.ttf',
-        None
-    ]
-    font_path = None
-    for candidate in font_candidates:
-        if candidate and os.path.exists(candidate):
-            font_path = candidate
-            break
-
-wc_kwargs = {
-    'width': mask_width,
-    'height': mask_height,
-    'background_color': 'white',
-    'max_words': 100,
-    'colormap': 'viridis',
-    'mask': mask,
-    'contour_width': 0,
-    'contour_color': 'steelblue',
-    'color_func': government_colors
-}
-
-if font_path:
-    wc_kwargs['font_path'] = font_path
-
-wc = WordCloud(**wc_kwargs)
+    # 根据操作系统选择中文字体
+    system = platform.system()
+    
+    if system == 'Windows':
+        font_path = 'C:/Windows/Fonts/msyh.ttc'  # Windows: 微软雅黑
+    elif system == 'Darwin':  # macOS
+        font_path = '/System/Library/Fonts/PingFang.ttc'  # macOS: 苹方
+    else:  # Linux (包括Codespaces)
+        # Linux系统尝试使用常见中文字体
+        font_candidates = [
+            '/usr/share/fonts/truetype/wqy/wqy-zenhei.ttc',  # 文泉驿正黑
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',  # DejaVu Sans
+            '/usr/share/fonts/TTF/DejaVuSans.ttf',
+            None  # 最后尝试默认字体
+        ]
+        font_path = None
+        for candidate in font_candidates:
+            if candidate and os.path.exists(candidate):
+                font_path = candidate
+                break
+    
+    # 生成词云（使用mask的实际尺寸）
+    wc_kwargs = {
+        'width': mask_width,
+        'height': mask_height,
+        'background_color': 'white',
+        'max_words': 100,
+        'colormap': 'viridis',
+        'mask': mask,
+        'contour_width': 0,
+        'contour_color': 'steelblue',
+        'color_func': government_colors
+    }
+    
+    # 只在找到有效字体时添加font_path参数
+    if font_path:
+        wc_kwargs['font_path'] = font_path
+    
+    wc = WordCloud(**wc_kwargs)
     
     wc.generate_from_frequencies(word_freq)
     
@@ -606,7 +609,7 @@ def show_overview(df):
     # 5个指标（无卡片样式，只有文字）
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        display_metric_simple(f"{len(df):,}", "📰 新闻总数")
+        display_metric_simple(f"{len(df):,}", " 新闻总数")
     with col2:
         avg = df['sentiment'].mean()
         cat, label, _ = get_sentiment_info(avg)
@@ -693,7 +696,7 @@ def show_overview(df):
 # ==================== 月度详情页 ====================
 def show_monthly(df):
     """月度详情"""
-    st.markdown('<div class="section-title">📅 月度详细分析</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title"> 月度详细分析</div>', unsafe_allow_html=True)
     
     # 功能1: 月份选择器
     months = sorted(df['year_month'].unique(), reverse=True)
@@ -736,7 +739,7 @@ def show_monthly(df):
         
         neg_ratio = neg / len(month_df) * 100
         if neg_ratio > 5 or neg > 10:
-            st.warning(f"⚠️ **本月检测到 {neg} 条负面新闻（占比 {neg_ratio:.1f}%）**，请密切关注以下高风险舆情：")
+            st.warning(f"️ **本月检测到 {neg} 条负面新闻（占比 {neg_ratio:.1f}%）**，请密切关注以下高风险舆情：")
         else:
             st.info(f"ℹ️ 本月检测到 {neg} 条负面新闻，舆情整体平稳。以下为最负面新闻：")
         
@@ -899,11 +902,11 @@ def main():
     st.sidebar.markdown("### 📌 导航菜单")
     page = st.sidebar.radio(
         "选择页面",
-        ["🏠 全局概览", "📅 月度详情"]
+        ["🏠 全局概览", " 月度详情"]
     )
     
     # 页面路由
-    if page == "🏠 全局概览":
+    if page == " 全局概览":
         show_overview(df)
     else:
         show_monthly(df)
