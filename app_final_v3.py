@@ -1,5 +1,6 @@
 """
 广州日报舆情分析系统 - 政府网站风格优化版 (Linux兼容版)
+修复版 - 修正导航菜单和页面路由错误
 """
 
 import streamlit as st
@@ -356,8 +357,14 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
     
     if system == 'Windows':
         font_path = 'C:/Windows/Fonts/msyh.ttc'  # Windows: 微软雅黑
+        if not os.path.exists(font_path):
+            print(f"⚠️ Windows字体 {font_path} 不存在，尝试其他路径")
+            font_path = None
     elif system == 'Darwin':  # macOS
         font_path = '/System/Library/Fonts/PingFang.ttc'  # macOS: 苹方
+        if not os.path.exists(font_path):
+            print(f"️ macOS字体 {font_path} 不存在，尝试其他路径")
+            font_path = None
     else:  # Linux (包括Codespaces)
         # Linux系统尝试使用常见中文字体
         font_candidates = [
@@ -370,6 +377,7 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
         for candidate in font_candidates:
             if candidate and os.path.exists(candidate):
                 font_path = candidate
+                print(f"✅ 找到Linux字体: {font_path}")
                 break
     
     # 生成词云（使用mask的实际尺寸）
@@ -388,6 +396,9 @@ def generate_wordcloud_from_titles(titles, mask_file='guangdong_true_mask.png'):
     # 只在找到有效字体时添加font_path参数
     if font_path:
         wc_kwargs['font_path'] = font_path
+        print(f"✅ 使用字体: {font_path}")
+    else:
+        print("⚠️ 未找到中文字体，使用默认字体（可能显示方框）")
     
     wc = WordCloud(**wc_kwargs)
     
@@ -619,7 +630,7 @@ def show_overview(df):
         display_metric_simple(f"{pos:,}", "✅ 正面新闻", "positive")
     with col4:
         neg = len(df[df['sentiment_category'] == 'negative'])
-        display_metric_simple(f"{neg:,}", "❌ 负面新闻", "negative")
+        display_metric_simple(f"{neg:,}", " 负面新闻", "negative")
     with col5:
         neu = len(df[df['sentiment_category'] == 'neutral'])
         display_metric_simple(f"{neu:,}", "😐 中性新闻", "neutral")
@@ -683,7 +694,7 @@ def show_overview(df):
             st.info("暂无词云数据")
         
     # 总体热点关键词
-    st.markdown('<div class="subsection-title">📋 总体热点关键词 TOP 20</div>', unsafe_allow_html=True)
+    st.markdown('<div class="subsection-title"> 总体热点关键词 TOP 20</div>', unsafe_allow_html=True)
         
     hot_topics = extract_hot_topics_from_titles(df['title'].tolist(), top_n=20)
     if hot_topics:
@@ -701,7 +712,7 @@ def show_monthly(df):
     # 功能1: 月份选择器
     months = sorted(df['year_month'].unique(), reverse=True)
     month_options = [str(m) for m in months]
-    selected = st.selectbox("📅 选择月份", month_options, index=0)
+    selected = st.selectbox(" 选择月份", month_options, index=0)
     
     month_df = df[df['year_month'].astype(str) == selected].copy()
     
@@ -714,7 +725,7 @@ def show_monthly(df):
         
     col1, col2, col3, col4, col5 = st.columns(5)
     with col1:
-        display_metric_simple(f"{len(month_df):,}", "📰 本月新闻总数")
+        display_metric_simple(f"{len(month_df):,}", " 本月新闻总数")
     with col2:
         avg = month_df['sentiment'].mean()
         cat, label, _ = get_sentiment_info(avg)
@@ -902,11 +913,14 @@ def main():
     st.sidebar.markdown("### 📌 导航菜单")
     page = st.sidebar.radio(
         "选择页面",
-        ["🏠 全局概览", " 月度详情"]
+        ["🏠 全局概览", "📅 月度详情"]
     )
     
+    # 显示当前页面（调试用）
+    st.sidebar.info(f"当前页面: {page}")
+    
     # 页面路由
-    if page == " 全局概览":
+    if page == "🏠 全局概览":
         show_overview(df)
     else:
         show_monthly(df)
